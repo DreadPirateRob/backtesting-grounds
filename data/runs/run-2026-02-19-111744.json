@@ -1,0 +1,398 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-2026-02-19-111744",
+  "timestamp": "2026-02-19T16:17:44Z",
+  "data_source": {
+    "file": "data/binance_BTCUSDT_1m_klines.csv",
+    "symbol": "BTCUSDT",
+    "start_date": "2025-01-01",
+    "end_date": "2025-12-31",
+    "total_bars_1m": 525600,
+    "resample_used": "1h"
+  },
+  "market_regime": {
+    "buy_and_hold_return_pct": -7.2,
+    "start_price": 94401.14,
+    "end_price": 87648.22,
+    "regime_label": "range_bound",
+    "sub_period_character": [
+      {
+        "period": "2025-01 to 2025-04",
+        "bh_return_pct": -0.2,
+        "label": "flat"
+      },
+      {
+        "period": "2025-05 to 2025-08",
+        "bh_return_pct": 14.7,
+        "label": "mild_uptrend"
+      },
+      {
+        "period": "2025-09 to 2025-12",
+        "bh_return_pct": -19.0,
+        "label": "selloff"
+      }
+    ]
+  },
+  "convergence": {
+    "reason": "stagnation",
+    "criterion_number": 2,
+    "total_strategies_tested": 7,
+    "total_iterations": 7,
+    "families_explored": [
+      "mean_reversion",
+      "trend_following",
+      "breakout",
+      "confluence"
+    ]
+  },
+  "leaderboard": [
+    {
+      "rank": 1,
+      "strategy_name": "rsi_bollinger",
+      "strategy_file": "strategies/rsi_bollinger_strategy.py",
+      "mode": "long+short",
+      "timeframe": "1h",
+      "best_params": {
+        "rsi_period": 30,
+        "overbought": 65,
+        "oversold": 32,
+        "bb_period": 15,
+        "bb_std": 2.0
+      },
+      "metrics": {
+        "sharpe_ratio": 2.97,
+        "sortino_ratio": 4.09,
+        "total_return_pct": 237.2,
+        "max_drawdown_pct": -23.3,
+        "win_rate_pct": 80.6,
+        "profit_factor": 5.75,
+        "total_trades": 31,
+        "time_in_market_pct": 98.5,
+        "long_trades": 15,
+        "short_trades": 16,
+        "long_win_rate_pct": 86.7,
+        "short_win_rate_pct": 75.0
+      },
+      "composite_score": 1.8,
+      "robustness": "PASS",
+      "robustness_details": {
+        "sub_period_results": [
+          {
+            "period": "2025-01 to 2025-04",
+            "sharpe": 2.84,
+            "return_pct": 58.8,
+            "profitable": true
+          },
+          {
+            "period": "2025-05 to 2025-08",
+            "sharpe": 1.22,
+            "return_pct": 12.5,
+            "profitable": true
+          },
+          {
+            "period": "2025-09 to 2025-12",
+            "sharpe": 4.63,
+            "return_pct": 83.7,
+            "profitable": true
+          }
+        ],
+        "walk_forward": {
+          "is_sharpe": 2.038,
+          "oos_sharpe": 3.397,
+          "oos_is_ratio_pct": 166.7
+        },
+        "neighbors_profitable": "10/10",
+        "multi_timeframe_4h": "FAIL (only 4 trades)"
+      },
+      "derivation": {
+        "method": "Method 3: Combine",
+        "parent": "rsi",
+        "parent_sharpe": 2.42
+      }
+    },
+    {
+      "rank": 2,
+      "strategy_name": "rsi",
+      "strategy_file": "strategies/rsi_strategy.py",
+      "mode": "long+short",
+      "timeframe": "1h",
+      "best_params": {
+        "period": 30,
+        "overbought": 65,
+        "oversold": 30
+      },
+      "metrics": {
+        "sharpe_ratio": 2.42,
+        "sortino_ratio": 3.35,
+        "total_return_pct": 165.0,
+        "max_drawdown_pct": -25.2,
+        "win_rate_pct": 80.8,
+        "profit_factor": 5.9,
+        "total_trades": 26,
+        "time_in_market_pct": 99.6,
+        "long_trades": 13,
+        "short_trades": 13,
+        "long_win_rate_pct": 84.6,
+        "short_win_rate_pct": 76.9
+      },
+      "composite_score": 1.5,
+      "robustness": "PASS",
+      "robustness_details": {
+        "sub_period_results": [
+          {
+            "period": "2025-01 to 2025-04",
+            "sharpe": 2.67,
+            "return_pct": 54.3,
+            "profitable": true
+          },
+          {
+            "period": "2025-05 to 2025-08",
+            "sharpe": 0.72,
+            "return_pct": 6.4,
+            "profitable": true
+          },
+          {
+            "period": "2025-09 to 2025-12",
+            "sharpe": 4.36,
+            "return_pct": 76.9,
+            "profitable": true
+          }
+        ],
+        "walk_forward": {
+          "is_sharpe": 2.118,
+          "oos_sharpe": 2.619,
+          "oos_is_ratio_pct": 123.7
+        },
+        "neighbors_profitable": "6/6",
+        "multi_timeframe_4h": "Sharpe 0.77 (4 trades only)"
+      },
+      "derivation": {
+        "method": "Seed",
+        "parent": null,
+        "parent_sharpe": null
+      }
+    },
+    {
+      "rank": 3,
+      "strategy_name": "rsi_ema",
+      "strategy_file": "strategies/rsi_ema_strategy.py",
+      "mode": "long+short",
+      "timeframe": "1h",
+      "best_params": {
+        "rsi_period": 22,
+        "overbought": 70,
+        "oversold": 30,
+        "ema_period": 100,
+        "slope_lookback": 72
+      },
+      "metrics": {
+        "sharpe_ratio": 0.84,
+        "total_return_pct": 31.4,
+        "max_drawdown_pct": -34.7,
+        "win_rate_pct": 80.0,
+        "profit_factor": 2.46,
+        "total_trades": 15
+      },
+      "robustness": "SKIP",
+      "derivation": {
+        "method": "Method 1: Add filter",
+        "parent": "rsi",
+        "parent_sharpe": 2.42
+      }
+    },
+    {
+      "rank": 4,
+      "strategy_name": "bollinger_bounce",
+      "strategy_file": "strategies/bollinger_bounce_strategy.py",
+      "mode": "long+short",
+      "timeframe": "1h",
+      "best_params": {
+        "period": 15,
+        "std": 3.0
+      },
+      "metrics": {
+        "sharpe_ratio": 0.6,
+        "total_return_pct": 18.0,
+        "max_drawdown_pct": -29.5,
+        "win_rate_pct": 55.6,
+        "profit_factor": 1.82,
+        "total_trades": 27
+      },
+      "robustness": "SKIP",
+      "derivation": {
+        "method": "Method 5: New concept",
+        "parent": null,
+        "parent_sharpe": null
+      }
+    },
+    {
+      "rank": 5,
+      "strategy_name": "atr_breakout",
+      "strategy_file": "strategies/atr_breakout_strategy.py",
+      "mode": "long+short",
+      "timeframe": "1h",
+      "best_params": {
+        "sma_period": 10,
+        "atr_period": 14,
+        "atr_mult": 3.0
+      },
+      "metrics": {
+        "sharpe_ratio": 0.29,
+        "total_return_pct": 3.1,
+        "max_drawdown_pct": -26.1,
+        "win_rate_pct": 46.2,
+        "profit_factor": 1.24,
+        "total_trades": 26
+      },
+      "robustness": "SKIP",
+      "derivation": {
+        "method": "Method 5: New concept",
+        "parent": null,
+        "parent_sharpe": null
+      }
+    },
+    {
+      "rank": 6,
+      "strategy_name": "ema_crossover",
+      "strategy_file": "strategies/ema_crossover_strategy.py",
+      "mode": "long+short",
+      "timeframe": "1h",
+      "best_params": {
+        "fast": 20,
+        "slow": 200
+      },
+      "metrics": {
+        "sharpe_ratio": -0.83,
+        "total_return_pct": -37.3,
+        "max_drawdown_pct": -47.5,
+        "win_rate_pct": 28.0,
+        "profit_factor": 0.76,
+        "total_trades": 82
+      },
+      "robustness": "FAIL",
+      "derivation": {
+        "method": "Method 5: New concept",
+        "parent": null,
+        "parent_sharpe": null
+      }
+    },
+    {
+      "rank": 7,
+      "strategy_name": "macd",
+      "strategy_file": "strategies/macd_strategy.py",
+      "mode": "long+short",
+      "timeframe": "1h",
+      "best_params": {
+        "fast": 8,
+        "slow": 20,
+        "signal": 9
+      },
+      "metrics": {
+        "sharpe_ratio": -3.48,
+        "total_return_pct": -81.2,
+        "max_drawdown_pct": -81.8,
+        "win_rate_pct": 39.5,
+        "profit_factor": 1.13,
+        "total_trades": 805
+      },
+      "robustness": "FAIL",
+      "derivation": {
+        "method": "Method 5: New concept",
+        "parent": null,
+        "parent_sharpe": null
+      }
+    }
+  ],
+  "derivation_genealogy": [
+    {
+      "step": 1,
+      "strategy": "rsi",
+      "sharpe": 2.42,
+      "method": "Seed",
+      "parent": null,
+      "family": "mean_reversion"
+    },
+    {
+      "step": 2,
+      "strategy": "ema_crossover",
+      "sharpe": -0.83,
+      "method": "Method 5: New concept",
+      "parent": null,
+      "family": "trend_following"
+    },
+    {
+      "step": 3,
+      "strategy": "atr_breakout",
+      "sharpe": 0.29,
+      "method": "Method 5: New concept",
+      "parent": null,
+      "family": "breakout"
+    },
+    {
+      "step": 4,
+      "strategy": "rsi_bollinger",
+      "sharpe": 2.97,
+      "method": "Method 3: Combine",
+      "parent": "rsi",
+      "family": "confluence"
+    },
+    {
+      "step": 5,
+      "strategy": "bollinger_bounce",
+      "sharpe": 0.6,
+      "method": "Method 5: New concept",
+      "parent": null,
+      "family": "mean_reversion"
+    },
+    {
+      "step": 6,
+      "strategy": "rsi_ema",
+      "sharpe": 0.84,
+      "method": "Method 1: Add filter",
+      "parent": "rsi",
+      "family": "mean_reversion"
+    },
+    {
+      "step": 7,
+      "strategy": "macd",
+      "sharpe": -3.48,
+      "method": "Method 5: New concept",
+      "parent": null,
+      "family": "trend_following"
+    }
+  ],
+  "key_insights": {
+    "what_worked": [
+      "RSI + Bollinger confluence outperformed pure RSI (+0.55 Sharpe)",
+      "Short side profitable \u2014 75-81% win rate in range-bound market",
+      "Mean-reversion family dominates in range-bound regime",
+      "Long RSI period (28-30) reduces false signals in choppy conditions"
+    ],
+    "what_failed": [
+      "All trend-following strategies (EMA crossover, MACD) destroyed by chop",
+      "MACD worst at -3.48 Sharpe, -81% return \u2014 highest trade frequency = highest losses",
+      "EMA trend filter too restrictive \u2014 cancels valid mean-reversion signals",
+      "ATR breakout marginal \u2014 breakout signals unreliable without sustained trends",
+      "Bollinger bounce alone weaker than RSI-based strategies"
+    ],
+    "market_observations": [
+      "2025 range-bound (-7.2% B&H)",
+      "Sub-periods: flat Q1-Q2a, mild up Q2b-Q3, selloff Q4",
+      "Mean-reversion dominates in this regime"
+    ],
+    "derivation_method_effectiveness": {
+      "Method 1: Add filter": {
+        "attempts": 1,
+        "improvements": 0
+      },
+      "Method 3: Combine": {
+        "attempts": 1,
+        "improvements": 1
+      },
+      "Method 5: New concept": {
+        "attempts": 4,
+        "improvements": 0
+      }
+    }
+  }
+}

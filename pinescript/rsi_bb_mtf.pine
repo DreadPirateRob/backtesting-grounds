@@ -1,0 +1,114 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0
+// https://mozilla.org/MPL/2.0/
+//
+// RSI + Bollinger Bands with Daily EMA Trend Filter (MTF)
+//
+// Logic:
+//   LONG  when RSI < oversold AND close < lower BB (confluence)
+//   SHORT when RSI > overbought AND close > upper BB (confluence)
+//   Positions are held until the opposite signal fires.
+//   A daily EMA trend filter suppresses longs in downtrends and shorts in uptrends.
+//
+// Optimised params (full-range 2021-2026 with robustness validation):
+//   Swing  (4h): rsi=16, ob=63, os=30, bb=30/2.5, daily_ema=40  (Rob=82.6, 8/8 profitable periods)
+//   Intra  (1h): rsi=26, ob=75, os=30, bb=12/2.5, daily_ema=35  (Rob=58.5, 5/8 profitable periods)
+
+//@version=6
+strategy("RSI+BB MTF", overlay=true, default_qty_type=strategy.percent_of_equity,
+         default_qty_value=100, commission_type=strategy.commission.percent,
+         commission_value=0.1, slippage=1, calc_on_every_tick=false,
+         process_orders_on_close=false)
+
+// ── Inputs ──────────────────────────────────────────────────────────────────
+grp_rsi = "RSI Settings"
+rsiPeriod   = input.int(16,    "RSI Period",       minval=2,  maxval=100, group=grp_rsi)
+overbought  = input.int(63,    "Overbought",       minval=50, maxval=95,  group=grp_rsi)
+oversold    = input.int(30,    "Oversold",         minval=5,  maxval=50,  group=grp_rsi)
+
+grp_bb = "Bollinger Bands"
+bbPeriod    = input.int(30,    "BB Period",         minval=2,  maxval=100, group=grp_bb)
+bbStd       = input.float(2.5, "BB Std Dev",        minval=0.5,maxval=5.0,step=0.25, group=grp_bb)
+
+grp_mtf = "Daily Trend Filter"
+useMtf      = input.bool(true, "Enable Daily EMA Filter", group=grp_mtf)
+dailyEma    = input.int(40,    "Daily EMA Length",  minval=5,  maxval=200, group=grp_mtf)
+
+grp_alert = "Alert Messages"
+alertLongMsg  = input.string("LONG",  "Long Alert Message",  group=grp_alert)
+alertShortMsg = input.string("SHORT", "Short Alert Message", group=grp_alert)
+alertFlatMsg  = input.string("FLAT",  "Flat Alert Message",  group=grp_alert)
+
+// ── Indicators ──────────────────────────────────────────────────────────────
+rsiVal = ta.rsi(close, rsiPeriod)
+[bbMiddle, bbUpper, bbLower] = ta.bb(close, bbPeriod, bbStd)
+
+// Daily EMA trend (request from daily timeframe, no lookahead)
+dailyClose    = request.security(syminfo.tickerid, "D", close[1], lookahead=barmerge.lookahead_on)
+dailyEmaVal   = request.security(syminfo.tickerid, "D", ta.ema(close, dailyEma)[1], lookahead=barmerge.lookahead_on)
+dailyTrend    = dailyClose > dailyEmaVal ? 1 : dailyClose < dailyEmaVal ? -1 : 0
+
+// ── Signal Logic ────────────────────────────────────────────────────────────
+longTrigger  = rsiVal < oversold  and close < bbLower
+shortTrigger = rsiVal > overbought and close > bbUpper
+
+// Track current position state via a persistent variable
+var int pos = 0
+
+if longTrigger
+    pos := 1
+if shortTrigger
+    pos := -1
+
+// Apply daily trend filter
+filteredPos = pos
+if useMtf
+    if pos ==  1 and dailyTrend == -1
+        filteredPos := 0
+    if pos == -1 and dailyTrend ==  1
+        filteredPos := 0
+
+// ── Order Execution ─────────────────────────────────────────────────────────
+if filteredPos == 1 and strategy.position_size <= 0
+    strategy.entry("Long", strategy.long)
+    alert(alertLongMsg, alert.freq_once_per_bar_close)
+
+if filteredPos == -1 and strategy.position_size >= 0
+    strategy.entry("Short", strategy.short)
+    alert(alertShortMsg, alert.freq_once_per_bar_close)
+
+if filteredPos == 0 and strategy.position_size != 0
+    strategy.close_all()
+    alert(alertFlatMsg, alert.freq_once_per_bar_close)
+
+// ── Plots ───────────────────────────────────────────────────────────────────
+plot(bbUpper,  "BB Upper",  color=color.new(color.gray, 60))
+plot(bbMiddle, "BB Mid",    color=color.new(color.gray, 80))
+plot(bbLower,  "BB Lower",  color=color.new(color.gray, 60))
+fill(plot(bbUpper, display=display.none), plot(bbLower, display=display.none),
+     color=color.new(color.blue, 92))
+
+// Background tint for daily trend
+bgcolor(useMtf and dailyTrend ==  1 ? color.new(color.green, 93) :
+        useMtf and dailyTrend == -1 ? color.new(color.red,   93) : na)
+
+// Signal markers
+plotshape(longTrigger  and (useMtf ? dailyTrend != -1 : true),
+          style=shape.triangleup,   location=location.belowbar,
+          color=color.green, size=size.small, title="Long Signal")
+plotshape(shortTrigger and (useMtf ? dailyTrend !=  1 : true),
+          style=shape.triangledown, location=location.abovebar,
+          color=color.red,   size=size.small, title="Short Signal")
+
+// ── Info Table ──────────────────────────────────────────────────────────────
+var table infoTbl = table.new(position.top_right, 2, 5, bgcolor=color.new(color.gray, 85))
+if barstate.islast
+    table.cell(infoTbl, 0, 0, "RSI",        text_color=color.white, text_size=size.small)
+    table.cell(infoTbl, 1, 0, str.tostring(rsiVal, "#.0"), text_color=color.white, text_size=size.small)
+    table.cell(infoTbl, 0, 1, "Position",   text_color=color.white, text_size=size.small)
+    table.cell(infoTbl, 1, 1, filteredPos == 1 ? "LONG" : filteredPos == -1 ? "SHORT" : "FLAT",
+               text_color=filteredPos == 1 ? color.green : filteredPos == -1 ? color.red : color.gray,
+               text_size=size.small)
+    table.cell(infoTbl, 0, 2, "D Trend",    text_color=color.white, text_size=size.small)
+    table.cell(infoTbl, 1, 2, dailyTrend == 1 ? "BULL" : dailyTrend == -1 ? "BEAR" : "FLAT",
+               text_color=dailyTrend == 1 ? color.green : dailyTrend == -1 ? color.red : color.gray,
+               text_size=size.small)

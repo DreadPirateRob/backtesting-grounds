@@ -1,0 +1,246 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-2026-02-19-113752",
+  "timestamp": "2026-02-19T16:37:52Z",
+  "data_source": {
+    "file": "data/binance_BTCUSDT_1m_klines.csv",
+    "symbol": "BTCUSDT",
+    "start_date": "2025-01-01",
+    "end_date": "2025-12-31",
+    "total_bars_1m": 525600,
+    "resample_used": "1m"
+  },
+  "market_regime": {
+    "buy_and_hold_return_pct": -6.4,
+    "start_price": 93610.93,
+    "end_price": 87648.22,
+    "regime_label": "range_bound",
+    "sub_period_character": [
+      {
+        "period": "2025-01 to 2025-04",
+        "bh_return_pct": -0.2,
+        "label": "flat"
+      },
+      {
+        "period": "2025-05 to 2025-08",
+        "bh_return_pct": 14.7,
+        "label": "mild_uptrend"
+      },
+      {
+        "period": "2025-09 to 2025-12",
+        "bh_return_pct": -19.0,
+        "label": "selloff"
+      }
+    ]
+  },
+  "convergence": {
+    "reason": "stagnation",
+    "criterion_number": 2,
+    "total_strategies_tested": 9,
+    "total_iterations": 9,
+    "families_explored": [
+      "mean_reversion",
+      "trend_following",
+      "breakout",
+      "volatility",
+      "confluence"
+    ]
+  },
+  "leaderboard": [
+    {
+      "rank": 1,
+      "strategy_name": "rsi",
+      "strategy_file": "strategies/rsi_strategy.py",
+      "mode": "long+short",
+      "timeframe": "1m",
+      "best_params": {
+        "period": 62,
+        "overbought": 82,
+        "oversold": 22
+      },
+      "metrics": {
+        "sharpe_ratio": 1.76,
+        "sortino_ratio": 2.17,
+        "total_return_pct": 96.8,
+        "max_drawdown_pct": -30.6,
+        "win_rate_pct": 83.3,
+        "profit_factor": 5.14,
+        "total_trades": 6,
+        "time_in_market_pct": 94.7,
+        "long_trades": 3,
+        "short_trades": 3,
+        "long_win_rate_pct": 66.7,
+        "short_win_rate_pct": 100.0
+      },
+      "robustness": "MARGINAL",
+      "robustness_details": {
+        "sub_period_results": [
+          {
+            "period": "2025-01 to 2025-04",
+            "sharpe": 2.58,
+            "return_pct": 49.3,
+            "profitable": true
+          },
+          {
+            "period": "2025-05 to 2025-08",
+            "sharpe": 0.99,
+            "return_pct": 9.7,
+            "profitable": true
+          },
+          {
+            "period": "2025-09 to 2025-12",
+            "sharpe": 0.1,
+            "return_pct": -1.5,
+            "profitable": false
+          }
+        ],
+        "neighbors_profitable": "5/6",
+        "fee_2x": "Sharpe 1.72, Return 93.5%"
+      },
+      "derivation": {
+        "method": "Seed (scaled)",
+        "parent": null
+      }
+    },
+    {
+      "rank": 2,
+      "strategy_name": "rsi",
+      "strategy_file": "strategies/rsi_strategy.py",
+      "mode": "long+short",
+      "timeframe": "1m",
+      "best_params": {
+        "period": 60,
+        "overbought": 70,
+        "oversold": 25
+      },
+      "metrics": {
+        "sharpe_ratio": 0.74,
+        "sortino_ratio": 0.94,
+        "total_return_pct": 26.6,
+        "max_drawdown_pct": -40.3,
+        "win_rate_pct": 71.0,
+        "profit_factor": 2.88,
+        "total_trades": 31,
+        "time_in_market_pct": 99.4,
+        "long_trades": 15,
+        "short_trades": 16,
+        "long_win_rate_pct": 86.7,
+        "short_win_rate_pct": 56.2
+      },
+      "robustness": "PASS",
+      "robustness_details": {
+        "sub_period_results": [
+          {
+            "period": "2025-01 to 2025-04",
+            "sharpe": 0.47,
+            "return_pct": 3.6,
+            "profitable": true
+          },
+          {
+            "period": "2025-05 to 2025-08",
+            "sharpe": -0.16,
+            "return_pct": -3.7,
+            "profitable": false
+          },
+          {
+            "period": "2025-09 to 2025-12",
+            "sharpe": 1.82,
+            "return_pct": 26.6,
+            "profitable": true
+          }
+        ],
+        "neighbors_profitable": "4/6",
+        "fee_2x": "Sharpe 0.54, Return 15.4%"
+      },
+      "derivation": {
+        "method": "Seed (scaled)",
+        "parent": null
+      }
+    }
+  ],
+  "derivation_genealogy": [
+    {
+      "step": 1,
+      "strategy": "rsi_bollinger (default)",
+      "sharpe": -0.43,
+      "method": "Seed",
+      "family": "confluence"
+    },
+    {
+      "step": 2,
+      "strategy": "rsi (default)",
+      "sharpe": 0.14,
+      "method": "Seed",
+      "family": "mean_reversion"
+    },
+    {
+      "step": 3,
+      "strategy": "ema_crossover (scaled)",
+      "sharpe": -2.79,
+      "method": "M5 New concept",
+      "family": "trend_following"
+    },
+    {
+      "step": 4,
+      "strategy": "macd (scaled)",
+      "sharpe": -5.16,
+      "method": "M5 New concept",
+      "family": "trend_following"
+    },
+    {
+      "step": 5,
+      "strategy": "bollinger_bounce (scaled)",
+      "sharpe": -2.27,
+      "method": "M5 New concept",
+      "family": "mean_reversion"
+    },
+    {
+      "step": 6,
+      "strategy": "atr_breakout (default)",
+      "sharpe": -35.07,
+      "method": "M5 New concept",
+      "family": "breakout"
+    },
+    {
+      "step": 7,
+      "strategy": "rsi (scaled 60)",
+      "sharpe": 0.86,
+      "method": "Param scaling",
+      "family": "mean_reversion"
+    },
+    {
+      "step": 8,
+      "strategy": "dual_rsi",
+      "sharpe": 0.88,
+      "method": "M3 Combine",
+      "family": "confluence"
+    },
+    {
+      "step": 9,
+      "strategy": "bb_squeeze",
+      "sharpe": -15.4,
+      "method": "M5 New concept",
+      "family": "volatility"
+    }
+  ],
+  "key_insights": {
+    "what_worked": [
+      "RSI with period=60-62 (1h equivalent) only viable approach at 1m",
+      "Extreme thresholds (OB 80-85, OS 20-22) reduce overtrading",
+      "Long side consistently profitable (67-87% WR)"
+    ],
+    "what_failed": [
+      "ALL trend-following/breakout/squeeze strategies catastrophically fail at 1m",
+      "Default param grids designed for hourly+ data produce 100s-1000s of trades at 1m",
+      "Bollinger filter adds no value at 1m \u2014 degenerates to pure RSI",
+      "Dual-timeframe RSI adds nothing \u2014 fast RSI doesnt differentiate",
+      "Fee drag at high frequency destroys any marginal edge"
+    ],
+    "market_observations": [
+      "1m resolution offers NO material edge over 1h for these strategy types",
+      "Same signals fire at roughly the same times; 1m just adds noise between signals",
+      "Trade count constrained to 5-31/year regardless of resolution",
+      "1m Sharpe inflated ~38x vs daily \u2014 1m Sharpe 1.76 roughly equals daily Sharpe 0.05"
+    ]
+  }
+}

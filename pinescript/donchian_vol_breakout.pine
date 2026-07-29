@@ -1,0 +1,230 @@
+// This Pine Script(TM) code is subject to the terms of the Mozilla Public License 2.0
+// https://mozilla.org/MPL/2.0/
+//
+// Donchian Vol Breakout Strategy with Volatility Targeting
+//
+// Multi-asset deployment-ready strategy for BTC/USDT, ETH/USDT, SOL/USDT on 1h.
+//
+// Core Logic (from strategies/donchian_vol_strategy.py):
+//   BUY when close > highest high of last entry_period bars (Donchian channel high)
+//   AND volume > vol_mult * 20-bar average volume.
+//   Hold the position for hold_bars bars, then go flat.
+//   After exiting, wait cooldown_bars bars before allowing re-entry.
+//   Buy-only strategy (no shorts) -- captures momentum breakouts confirmed
+//   by volume participation.
+//
+// Volatility Targeting Overlay:
+//   Realized vol  = annualized stdev of hourly log-returns over trailing 1440 bars (60 days at 1h)
+//   Target vol    = 25% annualized
+//   Position scale = clamp(target_vol / realized_vol, 0.5, 2.0)
+//   The strategy order size is scaled by this factor.
+//
+// Walk-forward validated parameters (across 2021-2026 BTC/ETH/SOL regimes):
+//   entry_period = 240 (modal WF selection), vol_mult = 2.0, hold_bars = 24, cooldown_bars = 12
+//
+// Walk-forward OOS Sharpe ratios:
+//   BTC: 0.83  |  ETH: 0.80  |  SOL: 0.87
+//
+// Parameter-robust: 12/12 ETH, 12/12 SOL param sets qualifying across
+// entry_period=[240-720], vol_mult=[1.0-2.5], hold=[24-48].
+
+//@version=5
+strategy("Donchian Vol Breakout + Vol Target", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=100, commission_type=strategy.commission.percent, commission_value=0.1, calc_on_every_tick=false, process_orders_on_close=false)
+
+// =============================================================================
+// INPUTS
+// =============================================================================
+
+grp_core = "Core Donchian Breakout"
+entryPeriod   = input.int(240,   "Entry Period (Donchian Length)", minval=20,  maxval=1000, group=grp_core, tooltip="Lookback bars for highest high. WF modal = 240.")
+volMult       = input.float(2.0, "Volume Multiplier",             minval=0.5, maxval=5.0,  step=0.25, group=grp_core, tooltip="Volume must exceed this multiple of 20-bar avg volume.")
+holdBars      = input.int(24,    "Hold Bars",                     minval=1,   maxval=200,  group=grp_core, tooltip="Bars to hold position after entry.")
+cooldownBars  = input.int(12,    "Cooldown Bars",                 minval=0,   maxval=100,  group=grp_core, tooltip="Bars to wait after exit before allowing re-entry.")
+
+grp_vol = "Volatility Targeting"
+useVolTarget  = input.bool(true, "Enable Vol Targeting",            group=grp_vol)
+volWindow     = input.int(1440,  "Realized Vol Window (bars)", minval=60, maxval=5000, group=grp_vol, tooltip="60 days * 24 hours = 1440 bars at 1h resolution")
+targetVol     = input.float(0.25,"Target Annualized Volatility",    minval=0.05,maxval=1.0, step=0.05, group=grp_vol)
+minScale      = input.float(0.5, "Min Position Scale",             minval=0.1, maxval=1.0, step=0.1, group=grp_vol)
+maxScale      = input.float(2.0, "Max Position Scale",             minval=1.0, maxval=5.0, step=0.25, group=grp_vol)
+
+grp_alert = "Alert Messages"
+alertEntryMsg = input.string("LONG",  "Entry Alert Message", group=grp_alert)
+alertExitMsg  = input.string("FLAT",  "Exit Alert Message",  group=grp_alert)
+
+// =============================================================================
+// INDICATORS
+// =============================================================================
+
+// --- Donchian Channel High (previous bar to avoid lookahead) ---
+donchianHigh = ta.highest(high, entryPeriod)[1]
+
+// --- Volume filter: 20-bar simple moving average of volume ---
+volAvg = ta.sma(volume, 20)
+
+// =============================================================================
+// SIGNAL LOGIC
+// =============================================================================
+// Buy condition: close breaks above the previous bar's Donchian high AND
+// volume exceeds vol_mult * 20-bar average volume.
+// After entry, hold for hold_bars, then go flat and wait cooldown_bars.
+
+// State tracking with persistent vars
+var int entryBarIndex = 0      // bar_index when position was entered
+var int cooldownLeft  = 0      // remaining cooldown bars after exit
+var bool inPosition   = false  // whether we are currently holding
+
+// Determine if hold period has expired
+holdExpired = inPosition and (bar_index - entryBarIndex >= holdBars)
+
+// Entry condition: not in position, cooldown satisfied, breakout + volume confirmed
+entrySignal = not inPosition and cooldownLeft == 0 and strategy.position_size == 0 and close > donchianHigh and volume > volMult * volAvg and not na(donchianHigh) and not na(volAvg) and volAvg > 0
+
+// State machine
+if entrySignal
+    inPosition   := true
+    entryBarIndex := bar_index
+    cooldownLeft := 0
+
+if holdExpired
+    inPosition   := false
+    cooldownLeft := cooldownBars
+
+// Decrement cooldown when flat and cooldown is active
+if not inPosition and cooldownLeft > 0
+    cooldownLeft := cooldownLeft - 1
+
+// =============================================================================
+// VOLATILITY TARGETING (POSITION SIZING)
+// =============================================================================
+// Compute trailing realized annualized volatility from hourly log-returns.
+// Annualization factor: sqrt(365.25 * 24) for hourly bars = sqrt(8766).
+
+logReturn   = math.log(close / close[1])
+realizedVol = ta.stdev(logReturn, volWindow) * math.sqrt(8766.0)
+
+// Position scale factor
+rawScale    = targetVol / math.max(realizedVol, 0.001)  // avoid division by zero
+posScale    = useVolTarget ? math.max(minScale, math.min(rawScale, maxScale)) : 1.0
+
+// =============================================================================
+// ORDER EXECUTION
+// =============================================================================
+
+// Enter long on breakout signal
+if entrySignal
+    strategy.entry("Long", strategy.long, qty=strategy.equity / close * posScale)
+    alert(alertEntryMsg, alert.freq_once_per_bar_close)
+
+// Exit when hold period expires
+if holdExpired
+    strategy.close("Long", comment="Hold expired")
+    alert(alertExitMsg, alert.freq_once_per_bar_close)
+
+// =============================================================================
+// SIGNAL TRANSITION DETECTION (for plots and alerts)
+// =============================================================================
+isEntry = entrySignal
+isExit  = holdExpired
+
+// Note: alertcondition() is only available in indicator() mode, not strategy().
+// For strategy alerts, the alert() calls in the order execution block above
+// fire on each entry/exit. To create TradingView alerts from this strategy, use:
+//   "Create Alert" -> Condition: "Donchian Vol Breakout + Vol Target" -> "Order fills only"
+
+// =============================================================================
+// PLOTS - Main Chart (overlay=true)
+// =============================================================================
+
+// Donchian channel high line
+plot(donchianHigh, "Donchian High", color=color.new(color.aqua, 20), linewidth=2)
+
+// Volume threshold reference (plot as invisible for Data Window access)
+plot(volMult * volAvg, "Vol Threshold", display=display.data_window, color=color.purple)
+
+// Background tint for current position
+posBgColor = inPosition ? color.new(color.green, 90) : cooldownLeft > 0 ? color.new(color.orange, 95) : na
+bgcolor(posBgColor, title="Position Background")
+
+// Signal markers on entry/exit transitions
+plotshape(isEntry, style=shape.triangleup,   location=location.belowbar, color=color.green, size=size.small, title="Entry Signal")
+plotshape(isExit,  style=shape.triangledown, location=location.abovebar, color=color.red,   size=size.small, title="Exit Signal")
+
+// =============================================================================
+// VOLATILITY TARGET DATA (Data Window + Status Line)
+// =============================================================================
+// PineScript v5 strategies with overlay=true cannot create a separate pane.
+// The vol-target data is exposed in TradingView's Data Window (right sidebar)
+// and Status Line so you can monitor it in real time.
+//
+// To view as a separate pane: right-click the strategy on the chart ->
+// "Move to" -> "New pane below". This moves the ENTIRE strategy to a
+// separate pane. Alternatively, create a companion indicator (see below).
+
+plot(posScale,    "Vol Scale",    display=display.data_window + display.status_line, color=color.blue)
+plot(realizedVol, "Realized Vol", display=display.data_window, color=color.orange)
+plot(targetVol,   "Target Vol",   display=display.data_window, color=color.gray)
+
+// =============================================================================
+// COMPANION INDICATOR (copy into a separate script to get a vol-scale pane):
+// =============================================================================
+//
+// //@version=5
+// indicator("Donchian Vol Breakout Vol Scale", overlay=false)
+// volWin   = input.int(1440, "Vol Window")
+// tgtVol   = input.float(0.25, "Target Vol")
+// minS     = input.float(0.5, "Min Scale")
+// maxS     = input.float(2.0, "Max Scale")
+// lr       = math.log(close / close[1])
+// rv       = ta.stdev(lr, volWin) * math.sqrt(8766.0)
+// raw      = tgtVol / math.max(rv, 0.001)
+// scale    = math.max(minS, math.min(raw, maxS))
+// plot(scale, "Vol Scale", color=color.blue, linewidth=2)
+// hline(1.0, "Neutral", color=color.gray, linestyle=hline.style_dashed)
+// hline(minS, "Min", color=color.red, linestyle=hline.style_dotted)
+// hline(maxS, "Max", color=color.green, linestyle=hline.style_dotted)
+
+// =============================================================================
+// INFO TABLE (top-right corner)
+// =============================================================================
+var table infoTbl = table.new(position.top_right, 2, 8, bgcolor=color.new(color.gray, 85), border_width=1, border_color=color.new(color.gray, 70))
+if barstate.islast
+    // Row 0: Strategy name
+    table.cell(infoTbl, 0, 0, "Donchian Vol", text_color=color.white, text_size=size.small)
+    paramStr = str.tostring(entryPeriod) + "/" + str.tostring(volMult, "#.#") + "/" + str.tostring(holdBars) + "/" + str.tostring(cooldownBars)
+    table.cell(infoTbl, 1, 0, paramStr, text_color=color.white, text_size=size.small)
+
+    // Row 1: Position
+    table.cell(infoTbl, 0, 1, "Position", text_color=color.white, text_size=size.small)
+    posLabel = inPosition ? "LONG" : cooldownLeft > 0 ? "COOLDOWN" : "FLAT"
+    posColor = inPosition ? color.green : cooldownLeft > 0 ? color.orange : color.gray
+    table.cell(infoTbl, 1, 1, posLabel, text_color=posColor, text_size=size.small)
+
+    // Row 2: Donchian High
+    table.cell(infoTbl, 0, 2, "Don High", text_color=color.white, text_size=size.small)
+    table.cell(infoTbl, 1, 2, str.tostring(donchianHigh, "#.1"), text_color=color.aqua, text_size=size.small)
+
+    // Row 3: Volume vs Threshold
+    table.cell(infoTbl, 0, 3, "Volume", text_color=color.white, text_size=size.small)
+    volThresh = volMult * volAvg
+    volColor  = volume > volThresh ? color.green : color.gray
+    table.cell(infoTbl, 1, 3, str.tostring(volume, "#.0"), text_color=volColor, text_size=size.small)
+
+    // Row 4: Volume threshold
+    table.cell(infoTbl, 0, 4, "Vol Thresh", text_color=color.white, text_size=size.small)
+    table.cell(infoTbl, 1, 4, str.tostring(volThresh, "#.0"), text_color=color.purple, text_size=size.small)
+
+    // Row 5: Hold remaining
+    table.cell(infoTbl, 0, 5, "Hold Left", text_color=color.white, text_size=size.small)
+    barsHeld    = inPosition ? bar_index - entryBarIndex : 0
+    holdLeft    = inPosition ? math.max(holdBars - barsHeld, 0) : 0
+    table.cell(infoTbl, 1, 5, str.tostring(holdLeft), text_color=color.white, text_size=size.small)
+
+    // Row 6: Realized vol
+    table.cell(infoTbl, 0, 6, "Rlz Vol", text_color=color.white, text_size=size.small)
+    table.cell(infoTbl, 1, 6, str.tostring(realizedVol * 100, "#.1") + "%", text_color=color.orange, text_size=size.small)
+
+    // Row 7: Vol scale
+    table.cell(infoTbl, 0, 7, "Vol Scale", text_color=color.white, text_size=size.small)
+    scaleColor = posScale > 1.0 ? color.green : posScale < 1.0 ? color.orange : color.white
+    table.cell(infoTbl, 1, 7, str.tostring(posScale, "#.##") + "x", text_color=scaleColor, text_size=size.small)
